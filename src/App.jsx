@@ -192,6 +192,16 @@ function DownloadModal({ track, onClose }) {
     } catch {
       window.open(`${R2_PUBLIC_URL}/${track.filename}`, "_blank");
     }
+    // Increment download count via Supabase RPC (fire-and-forget)
+    fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_download_count`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ track_id: track.id }),
+    }).catch(() => {});
     onClose();
   };
 
@@ -226,7 +236,7 @@ function DownloadModal({ track, onClose }) {
                 <span style={{ fontSize: 11, color: "#4a4a5e" }}>Google AdSense / Video Ad Unit</span>
               </div>
               <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <div style={{ ...styles.timerCircle, borderColor: countdown === 0 ? accent : undefined }}>
+                <div style={{ ...styles.timerCircle, borderColor: countdown === 0 ? "var(--accent)" : undefined }}>
                   {countdown === 0 ? "✓" : countdown}
                 </div>
               </div>
@@ -234,6 +244,8 @@ function DownloadModal({ track, onClose }) {
                 disabled={countdown > 0}
                 onClick={() => setStep("credit")}
                 style={{ ...styles.btnPrimary, opacity: countdown > 0 ? 0.35 : 1, cursor: countdown > 0 ? "not-allowed" : "pointer" }}
+                onMouseEnter={e => { if (countdown === 0) e.currentTarget.style.filter = "brightness(0.88)"; }}
+                onMouseLeave={e => { e.currentTarget.style.filter = ""; }}
               >
                 Continue to Download
               </button>
@@ -253,7 +265,10 @@ function DownloadModal({ track, onClose }) {
               </div>
 
               {track.youtube_url && (
-                <a href={track.youtube_url} target="_blank" rel="noopener noreferrer" style={styles.youtubeLink}>
+                <a href={track.youtube_url} target="_blank" rel="noopener noreferrer" style={styles.youtubeLink}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,68,68,0.16)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,68,68,0.08)"; }}
+                >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.377.504A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.504 9.376.504 9.376.504s7.505 0 9.377-.504a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/><polygon points="9.545 15.568 15.818 12 9.545 8.432" fill="#0a0a0f"/></svg>
                   Watch on YouTube
                 </a>
@@ -261,7 +276,10 @@ function DownloadModal({ track, onClose }) {
 
               <div style={styles.divider} />
 
-              <button onClick={handleDownload} style={styles.btnPrimary}>
+              <button onClick={handleDownload} style={styles.btnPrimary}
+                onMouseEnter={e => { e.currentTarget.style.filter = "brightness(0.88)"; }}
+                onMouseLeave={e => { e.currentTarget.style.filter = ""; }}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download MP3
               </button>
@@ -326,6 +344,7 @@ export default function SafeMusicLibrary() {
   const filteredTracksRef = useRef([]);
   const currentTrackRef = useRef(null);
   const playTrackRef = useRef(null);
+  const volumeTrackRef = useRef(null);
 
   // Try to load from Supabase on mount
   useEffect(() => {
@@ -336,9 +355,21 @@ export default function SafeMusicLibrary() {
     })();
   }, []);
 
-  // Fetch YouTube subscriber count
+  // Fetch YouTube subscriber count (stale-while-revalidate)
   useEffect(() => {
     if (!YOUTUBE_API_KEY || !YOUTUBE_CHANNEL_HANDLE) return;
+    const CACHE_KEY = "sml_yt_subscribers";
+    const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+    // Show cached value immediately if available
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached?.count != null) setSubscribers(cached.count);
+      // Skip fetch if cache is still fresh
+      if (cached?.ts && Date.now() - cached.ts < CACHE_TTL) return;
+    } catch {}
+
+    // Fetch fresh value in background
     (async () => {
       try {
         const res = await fetch(
@@ -346,7 +377,11 @@ export default function SafeMusicLibrary() {
         );
         const data = await res.json();
         const count = data?.items?.[0]?.statistics?.subscriberCount;
-        if (count != null) setSubscribers(parseInt(count, 10));
+        if (count != null) {
+          const n = parseInt(count, 10);
+          setSubscribers(n);
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ count: n, ts: Date.now() }));
+        }
       } catch {}
     })();
   }, []);
@@ -426,12 +461,24 @@ export default function SafeMusicLibrary() {
     setProgress(newTime);
   }, [duration]);
 
-  const handleVolumeClick = useCallback((e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setVolume(ratio);
-    if (audioRef.current) audioRef.current.volume = ratio;
-    if (ratio > 0) setIsMuted(false);
+  const handleVolumeMouseDown = useCallback((e) => {
+    e.preventDefault();
+    const applyVolume = (clientX) => {
+      const rect = volumeTrackRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      setVolume(ratio);
+      if (audioRef.current) audioRef.current.volume = ratio;
+      if (ratio > 0) setIsMuted(false);
+    };
+    applyVolume(e.clientX);
+    const onMouseMove = (e) => applyVolume(e.clientX);
+    const onMouseUp = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   }, []);
 
   const toggleMute = useCallback(() => {
@@ -456,6 +503,39 @@ export default function SafeMusicLibrary() {
     playTrackRef.current(ft[(idx - 1 + ft.length) % ft.length]);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      const audio = audioRef.current;
+      switch (e.key) {
+        case " ":
+        case "F6":
+          e.preventDefault();
+          if (currentTrackRef.current) playTrackRef.current(currentTrackRef.current);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (audio?.duration) audio.currentTime = Math.min(audio.currentTime + 5, audio.duration);
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          if (audio) audio.currentTime = Math.max(audio.currentTime - 5, 0);
+          break;
+        case "F5":
+          e.preventDefault();
+          playPrev();
+          break;
+        case "F7":
+          e.preventDefault();
+          playNext();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [playNext, playPrev]);
+
   const filteredTracks = tracks.filter(t => {
     const matchesMood = activeMood === "All" || t.mood === activeMood || t.genre === activeMood;
     const q = search.toLowerCase();
@@ -476,8 +556,10 @@ export default function SafeMusicLibrary() {
       {/* ── NAV ── */}
       <nav style={styles.nav}>
         <div style={styles.logo}>
-          <div style={styles.logoMark}>S</div>
-          <span>SafeMusicLibrary</span>
+          <div style={styles.logoMark}>
+            <img src="/SML-Waveform-logo-thick.png" alt="SML" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </div>
+          <span><span style={{ fontWeight: 700 }}>SafeMusic</span><span style={{ fontWeight: 300 }}>Library</span></span>
         </div>
         <div style={styles.navLinks}>
           <a href="#" style={{ ...styles.navLink, color: "var(--accent)", transition: "color 0.5s" }}>Library</a>
@@ -493,7 +575,7 @@ export default function SafeMusicLibrary() {
           Free Music for <span style={{ color: "var(--accent)", transition: "color 0.5s" }}>Creators</span>
         </h1>
         <p style={styles.heroSub}>
-          High-quality, copyright-free instrumentals ready for your next video. Stream, download, and create — no strings attached.
+          High-quality, copyright-free instrumentals ready for your next video. Stream, download, create.
         </p>
       </div>
 
@@ -522,6 +604,21 @@ export default function SafeMusicLibrary() {
               style={{
                 ...styles.filterChip,
                 ...(activeMood === mood ? styles.filterChipActive : {}),
+              }}
+              onMouseEnter={e => {
+                if (activeMood === mood) {
+                  e.currentTarget.style.filter = "brightness(0.88)";
+                } else {
+                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                  e.currentTarget.style.borderColor = "#3a3a4a";
+                  e.currentTarget.style.color = "#eaeaf0";
+                }
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.filter = "";
+                e.currentTarget.style.background = activeMood === mood ? "var(--accent)" : "transparent";
+                e.currentTarget.style.borderColor = activeMood === mood ? "var(--accent)" : "#2a2a3a";
+                e.currentTarget.style.color = activeMood === mood ? "#0a0a0f" : "#7a7a8e";
               }}
             >
               {mood}
@@ -697,7 +794,7 @@ export default function SafeMusicLibrary() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
               )}
             </button>
-            <div style={{ ...styles.volumeTrack, cursor: "pointer" }} onClick={handleVolumeClick}>
+            <div ref={volumeTrackRef} style={{ ...styles.volumeTrack, cursor: "pointer" }} onMouseDown={handleVolumeMouseDown}>
               <div style={{ ...styles.volumeFill, width: `${isMuted ? 0 : volume * 100}%` }} />
             </div>
           </div>
@@ -744,7 +841,7 @@ const styles = {
   // Nav
   nav: { position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 40px", height: 64, background: "rgba(10,10,15,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1e1e2a" },
   logo: { fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 20, letterSpacing: -0.5, display: "flex", alignItems: "center", gap: 10 },
-  logoMark: { width: 32, height: 32, background: "var(--accent)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#0a0a0f", fontWeight: 700, transition: "background 0.5s" },
+  logoMark: { width: 40, height: 40, background: "transparent", border: "1.5px solid var(--accent)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", padding: 3, boxSizing: "border-box", transition: "border-color 0.5s", overflow: "hidden" },
   navLinks: { display: "flex", gap: 32, alignItems: "center" },
   navLink: { color: "#7a7a8e", textDecoration: "none", fontSize: 14, fontWeight: 500 },
 
@@ -810,7 +907,7 @@ const styles = {
   adSupportMsg: { fontSize: 13, color: "#7a7a8e", lineHeight: 1.6, marginBottom: 20, padding: "12px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 8, borderLeft: "3px solid var(--accent)" },
   adPlaceholder: { width: "100%", height: 180, background: "#16161f", border: "1px dashed #1e1e2a", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "#4a4a5e", fontSize: 13, marginBottom: 16 },
   timerCircle: { width: 48, height: 48, borderRadius: "50%", border: "3px solid #1e1e2a", borderTopColor: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "'Space Mono', monospace", fontSize: 16, fontWeight: 700, color: "var(--accent)" },
-  btnPrimary: { width: "100%", padding: 14, borderRadius: 8, border: "none", background: "var(--accent)", color: "#0a0a0f", fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
+  btnPrimary: { width: "100%", padding: 14, borderRadius: 8, border: "none", background: "var(--accent)", color: "#0a0a0f", fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "filter 0.15s" },
   creditLabel: { fontSize: 13, color: "#7a7a8e", marginBottom: 10, lineHeight: 1.5 },
   creditBox: { background: "#16161f", border: "1px solid #1e1e2a", borderRadius: 8, padding: "14px 16px", marginBottom: 16, position: "relative" },
   copyBtn: { position: "absolute", top: 10, right: 10, padding: "6px 12px", borderRadius: 6, border: "1px solid #1e1e2a", background: "#12121a", color: "#7a7a8e", fontFamily: "'Outfit', sans-serif", fontSize: 11, fontWeight: 600, cursor: "pointer" },
