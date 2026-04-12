@@ -350,7 +350,22 @@ export default function SafeMusicLibrary() {
   useEffect(() => {
     (async () => {
       const data = await supabaseFetch("tracks", "select=*&order=created_at.desc");
-      if (data && data.length > 0) setTracks(data);
+      if (data && data.length > 0) {
+        setTracks(data);
+        const param = new URLSearchParams(window.location.search).get("track");
+        if (param) {
+          const match = data.find(t =>
+            t.filename.replace(/\.mp3$/i, "").replace(/\s+/g, "-").toLowerCase() === param.toLowerCase()
+          );
+          if (match) setTimeout(() => {
+            const audio = audioRef.current;
+            if (audio) audio.src = `${R2_PUBLIC_URL}/${match.filename}`;
+            setCurrentTrack(match);
+            setProgress(0);
+            setDuration(match.duration);
+          }, 0);
+        }
+      }
       setLoading(false);
     })();
   }, []);
