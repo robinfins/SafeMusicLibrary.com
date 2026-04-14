@@ -148,7 +148,22 @@ function DownloadModal({ track, onClose }) {
   const [step, setStep] = useState("ad");
   const [countdown, setCountdown] = useState(5);
   const [copied, setCopied] = useState(false);
+  const [adBlocked, setAdBlocked] = useState(false);
   const accent = MOOD_ACCENT[track?.mood]?.color || DEFAULT_ACCENT.color;
+
+  useEffect(() => {
+    const bait = document.createElement("div");
+    bait.className = "adsbox pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads";
+    bait.style.cssText = "width:1px;height:1px;position:absolute;left:-9999px;top:-9999px;";
+    document.body.appendChild(bait);
+    setTimeout(() => {
+      const blocked = bait.offsetHeight === 0 ||
+        getComputedStyle(bait).display === "none" ||
+        getComputedStyle(bait).visibility === "hidden";
+      setAdBlocked(blocked);
+      document.body.removeChild(bait);
+    }, 150);
+  }, []);
 
   useEffect(() => {
     if (step !== "ad") return;
@@ -160,6 +175,11 @@ function DownloadModal({ track, onClose }) {
       });
     }, 1000);
     return () => clearInterval(interval);
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "ad") return;
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch {}
   }, [step]);
 
   if (!track) return null;
@@ -225,11 +245,24 @@ function DownloadModal({ track, onClose }) {
                 <strong style={{ color: "#eaeaf0" }}>Thanks for supporting SafeMusicLibrary!</strong><br />
                 Watching this short ad helps us keep all our music 100% free for creators like you.
               </div>
-              <div style={styles.adPlaceholder}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.4 }}><rect x="2" y="2" width="20" height="20" rx="2"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-                <span>Ad plays here</span>
-                <span style={{ fontSize: 11, color: "#4a4a5e" }}>Google AdSense / Video Ad Unit</span>
-              </div>
+              {adBlocked ? (
+                <div style={{ width: "100%", minHeight: 180, marginBottom: 16, background: "#16161f", border: "1px solid #2a2a3a", borderRadius: 8, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 24, textAlign: "center" }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7a7a8e" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <div style={{ color: "#eaeaf0", fontWeight: 600, fontSize: 14 }}>Ad blocker detected</div>
+                  <div style={{ color: "#7a7a8e", fontSize: 13, lineHeight: 1.6, maxWidth: 280 }}>
+                    Ads keep SafeMusicLibrary free. Please whitelist this site in your ad blocker, then reopen the download.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ width: "100%", minHeight: 180, marginBottom: 16 }}>
+                  <ins className="adsbygoogle"
+                    style={{ display: "block" }}
+                    data-ad-client="ca-pub-3266340486490318"
+                    data-ad-slot="2269245778"
+                    data-ad-format="auto"
+                    data-full-width-responsive="true" />
+                </div>
+              )}
               <div style={{ textAlign: "center", marginBottom: 16 }}>
                 <div style={{ ...styles.timerCircle, borderColor: countdown === 0 ? "var(--accent)" : undefined }}>
                   {countdown === 0 ? "✓" : countdown}
