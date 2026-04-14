@@ -25,6 +25,7 @@ const MOOD_ACCENT = {
   Chill:      { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
   Aggressive: { color: "#ff6b6b", subtle: "rgba(255,107,107,0.08)" },
   Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
+  Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
   Sad:        { color: "#74b9ff", subtle: "rgba(116,185,255,0.08)" },
 };
 const DEFAULT_ACCENT = { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" };
