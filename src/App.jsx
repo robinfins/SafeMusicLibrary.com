@@ -8,18 +8,15 @@ const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || "";
 const YOUTUBE_CHANNEL_HANDLE = import.meta.env.VITE_YOUTUBE_CHANNEL_HANDLE || "";
 
 
-const MOODS = ["All", "Dark", "Epic", "Chill", "Aggressive", "Uplifting", "Sad", "Cinematic", "Lo-Fi", "Ambient"];
+const MOODS = ["All", "Dark", "Epic", "Chill", "Aggressive", "Energetic", "Sad"];
 
 const MOOD_COLORS = {
-  Dark: { bg: "rgba(108,92,231,0.12)", text: "#a29bfe", dot: "#a29bfe" },
-  Epic: { bg: "rgba(225,112,85,0.12)", text: "#e17055", dot: "#e17055" },
-  Chill: { bg: "rgba(0,184,148,0.12)", text: "#00e5a0", dot: "#00e5a0" },
-  Aggressive: { bg: "rgba(214,48,49,0.12)", text: "#ff6b6b", dot: "#ff6b6b" },
-  Uplifting: { bg: "rgba(253,203,110,0.12)", text: "#fdcb6e", dot: "#fdcb6e" },
-  Sad: { bg: "rgba(116,185,255,0.12)", text: "#74b9ff", dot: "#74b9ff" },
-  Cinematic: { bg: "rgba(162,155,254,0.12)", text: "#a29bfe", dot: "#a29bfe" },
-  "Lo-Fi": { bg: "rgba(0,229,160,0.12)", text: "#00e5a0", dot: "#00e5a0" },
-  Ambient: { bg: "rgba(116,185,255,0.12)", text: "#74b9ff", dot: "#74b9ff" },
+  Dark:       { bg: "rgba(108,92,231,0.12)",  text: "#a29bfe", dot: "#a29bfe" },
+  Epic:       { bg: "rgba(225,112,85,0.12)",  text: "#e17055", dot: "#e17055" },
+  Chill:      { bg: "rgba(0,184,148,0.12)",   text: "#00e5a0", dot: "#00e5a0" },
+  Aggressive: { bg: "rgba(214,48,49,0.12)",   text: "#ff6b6b", dot: "#ff6b6b" },
+  Energetic:  { bg: "rgba(253,203,110,0.12)", text: "#fdcb6e", dot: "#fdcb6e" },
+  Sad:        { bg: "rgba(116,185,255,0.12)", text: "#74b9ff", dot: "#74b9ff" },
 };
 
 const MOOD_ACCENT = {
@@ -27,11 +24,8 @@ const MOOD_ACCENT = {
   Epic:       { color: "#e17055", subtle: "rgba(225,112,85,0.08)" },
   Chill:      { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
   Aggressive: { color: "#ff6b6b", subtle: "rgba(255,107,107,0.08)" },
-  Uplifting:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
+  Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
   Sad:        { color: "#74b9ff", subtle: "rgba(116,185,255,0.08)" },
-  Cinematic:  { color: "#a29bfe", subtle: "rgba(162,155,254,0.08)" },
-  "Lo-Fi":    { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
-  Ambient:    { color: "#74b9ff", subtle: "rgba(116,185,255,0.08)" },
 };
 const DEFAULT_ACCENT = { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" };
 
@@ -294,23 +288,26 @@ function DownloadModal({ track, onClose }) {
 // ═══════════════════════════════════════════════
 // SKELETON ROW — shown while tracks are loading
 // ═══════════════════════════════════════════════
-function SkeletonRow({ delay = 0 }) {
+function SkeletonRow({ delay = 0, isMobile = false }) {
   const s = (w, h, extra = {}) => ({
     width: w, height: h, borderRadius: 4,
     background: "#16161f",
     animation: `shimmer 1.6s ease-in-out ${delay}s infinite`,
     ...extra,
   });
+  const rowStyle = isMobile
+    ? { ...styles.trackRow, gridTemplateColumns: "40px 1fr 80px", cursor: "default", pointerEvents: "none" }
+    : { ...styles.trackRow, cursor: "default", pointerEvents: "none" };
   return (
-    <div style={{ ...styles.trackRow, cursor: "default", pointerEvents: "none" }}>
+    <div style={rowStyle}>
       <div style={s(36, 36, { borderRadius: "50%" })} />
       <div>
         <div style={s(130, 13, { marginBottom: 7 })} />
         <div style={s(55, 11)} />
       </div>
-      <div style={s(72, 22, { borderRadius: 100 })} />
-      <div style={s(48, 13)} />
-      <div style={s(34, 13)} />
+      {!isMobile && <div style={s(72, 22, { borderRadius: 100 })} />}
+      {!isMobile && <div style={s(48, 13)} />}
+      {!isMobile && <div style={s(34, 13)} />}
       <div style={s(58, 28, { borderRadius: 100, marginLeft: "auto" })} />
     </div>
   );
@@ -332,6 +329,7 @@ export default function SafeMusicLibrary() {
   const [downloadTrack, setDownloadTrack] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [subscribers, setSubscribers] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
 
   const accentTheme = currentTrack ? (MOOD_ACCENT[currentTrack.mood] || DEFAULT_ACCENT) : DEFAULT_ACCENT;
   const accent = accentTheme.color;
@@ -370,9 +368,15 @@ export default function SafeMusicLibrary() {
     })();
   }, []);
 
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   // Fetch YouTube subscriber count (stale-while-revalidate)
   useEffect(() => {
-    if (!YOUTUBE_API_KEY || !YOUTUBE_CHANNEL_HANDLE) return;
+    if (!YOUTUBE_API_KEY || !YOUTUBE_CHANNEL_HANDLE || isMobile) return;
     const CACHE_KEY = "sml_yt_subscribers";
     const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -552,7 +556,7 @@ export default function SafeMusicLibrary() {
   }, [playNext, playPrev]);
 
   const filteredTracks = tracks.filter(t => {
-    const matchesMood = activeMood === "All" || t.mood === activeMood || t.genre === activeMood;
+    const matchesMood = activeMood === "All" || t.mood === activeMood;
     const q = search.toLowerCase();
     const matchesSearch = !q || t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q) || t.mood.toLowerCase().includes(q) || t.genre.toLowerCase().includes(q);
     return matchesMood && matchesSearch;
@@ -569,24 +573,19 @@ export default function SafeMusicLibrary() {
   return (
     <div style={{ ...styles.root, "--accent": accent, "--accent-subtle": accentTheme.subtle }}>
       {/* ── NAV ── */}
-      <nav style={styles.nav}>
+      <nav style={{ ...styles.nav, ...(isMobile ? { padding: "0 16px" } : {}) }}>
         <div style={styles.logo}>
           <div style={styles.logoMark}>
             <img src="/SML-Waveform-logo-thick.png" alt="SML" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
           <span><span style={{ fontWeight: 700 }}>SafeMusic</span><span style={{ fontWeight: 300 }}>Library</span></span>
         </div>
-        <div style={styles.navLinks}>
-          <a href="#" style={{ ...styles.navLink, color: "var(--accent)", transition: "color 0.5s" }}>Library</a>
-          <a href="#" style={styles.navLink}>How to Use</a>
-          <a href="#" style={styles.navLink}>About</a>
-        </div>
       </nav>
 
       {/* ── HERO ── */}
-      <div style={styles.hero}>
+      <div style={{ ...styles.hero, ...(isMobile ? { padding: "130px 16px 32px" } : {}) }}>
         <div style={styles.heroGlow} />
-        <h1 style={styles.heroTitle}>
+        <h1 style={{ ...styles.heroTitle, ...(isMobile ? { fontSize: 36, letterSpacing: -0.5 } : {}) }}>
           Free Music for <span style={{ color: "var(--accent)", transition: "color 0.5s" }}>Creators</span>
         </h1>
         <p style={styles.heroSub}>
@@ -595,7 +594,7 @@ export default function SafeMusicLibrary() {
       </div>
 
       {/* ── SEARCH & FILTERS ── */}
-      <div style={styles.controls}>
+      <div style={{ ...styles.controls, ...(isMobile ? { padding: "0 16px 24px" } : {}) }}>
         <div style={styles.searchBar}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4a4a5e" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input
@@ -611,7 +610,7 @@ export default function SafeMusicLibrary() {
             </button>
           )}
         </div>
-        <div style={styles.filters}>
+        {!isMobile && <div style={styles.filters}>
           {MOODS.map(mood => (
             <button
               key={mood}
@@ -639,12 +638,12 @@ export default function SafeMusicLibrary() {
               {mood}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
 
       {/* ── STATS ── */}
-      <div style={styles.stats}>
-        <div style={styles.statCard}>
+      <div style={{ ...styles.stats, ...(isMobile ? { justifyContent: "center" } : {}) }}>
+        <div style={{ ...styles.statCard, ...(isMobile ? { flex: "0 1 auto" } : {}) }}>
           <div style={styles.statIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
           </div>
@@ -653,7 +652,7 @@ export default function SafeMusicLibrary() {
             <div style={styles.statLabel}>FREE TRACKS</div>
           </div>
         </div>
-        <div style={styles.statCard}>
+        <div style={{ ...styles.statCard, ...(isMobile ? { flex: "0 1 auto" } : {}) }}>
           <div style={styles.statIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
@@ -662,7 +661,7 @@ export default function SafeMusicLibrary() {
             <div style={styles.statLabel}>DOWNLOADS</div>
           </div>
         </div>
-        <div style={styles.statCard}>
+        {!isMobile && <div style={styles.statCard}>
           <div style={styles.statIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.546 12 3.546 12 3.546s-7.505 0-9.377.504A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.504 9.376.504 9.376.504s7.505 0 9.377-.504a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/><polygon points="9.545 15.568 15.818 12 9.545 8.432" fill="#0a0a0f"/></svg>
           </div>
@@ -670,22 +669,24 @@ export default function SafeMusicLibrary() {
             <div style={styles.statNumber}>{formatCount(subscribers)}</div>
             <div style={styles.statLabel}>SUBSCRIBERS</div>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* ── TRACK LIST ── */}
-      <div style={styles.trackList}>
-        <div style={styles.trackListHeader}>
-          <span style={styles.headerLabel} />
-          <span style={styles.headerLabel}>Title</span>
-          <span style={styles.headerLabel}>Mood</span>
-          <span style={styles.headerLabel}>Genre</span>
-          <span style={styles.headerLabel}>Duration</span>
-          <span style={styles.headerLabel} />
-        </div>
+      <div style={{ ...styles.trackList, ...(isMobile ? { padding: "0 8px" } : {}) }}>
+        {!isMobile && (
+          <div style={styles.trackListHeader}>
+            <span style={styles.headerLabel} />
+            <span style={styles.headerLabel}>Title</span>
+            <span style={styles.headerLabel}>Mood</span>
+            <span style={styles.headerLabel}>Genre</span>
+            <span style={styles.headerLabel}>Duration</span>
+            <span style={styles.headerLabel} />
+          </div>
+        )}
 
         {loading && (
-          [0, 0.1, 0.2, 0.3, 0.4].map((delay, i) => <SkeletonRow key={i} delay={delay} />)
+          [0, 0.1, 0.2, 0.3, 0.4].map((delay, i) => <SkeletonRow key={i} delay={delay} isMobile={isMobile} />)
         )}
 
         {!loading && filteredTracks.length === 0 && (
@@ -700,7 +701,7 @@ export default function SafeMusicLibrary() {
           return (
             <div
               key={track.id}
-              style={{ ...styles.trackRow, background: currentTrack?.id === track.id ? "#16161f" : "transparent" }}
+              style={{ ...styles.trackRow, ...(isMobile ? { gridTemplateColumns: "40px 1fr 80px" } : {}), background: currentTrack?.id === track.id ? "#16161f" : "transparent" }}
               onClick={() => playTrack(track)}
               onMouseEnter={e => { if (currentTrack?.id !== track.id) e.currentTarget.style.background = "#1c1c28"; }}
               onMouseLeave={e => { if (currentTrack?.id !== track.id) e.currentTarget.style.background = "transparent"; }}
@@ -714,16 +715,26 @@ export default function SafeMusicLibrary() {
               </button>
               <div>
                 <div style={{ ...styles.trackTitle, color: currentTrack?.id === track.id ? "var(--accent)" : "#eaeaf0", transition: "color 0.5s" }}>{track.title}</div>
-                <div style={styles.trackArtist}>{track.artist}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span style={styles.trackArtist}>{track.artist}</span>
+                  {isMobile && (
+                    <span style={{ ...styles.moodTag, background: mc.bg, color: mc.text, fontSize: 10, padding: "2px 7px" }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: mc.dot }} />
+                      {track.mood}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div>
-                <span style={{ ...styles.moodTag, background: mc.bg, color: mc.text }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: mc.dot }} />
-                  {track.mood}
-                </span>
-              </div>
-              <div style={{ color: "#7a7a8e", fontSize: 13 }}>{track.genre}</div>
-              <div style={styles.trackDuration}>{formatTime(track.duration)}</div>
+              {!isMobile && (
+                <div>
+                  <span style={{ ...styles.moodTag, background: mc.bg, color: mc.text }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: mc.dot }} />
+                    {track.mood}
+                  </span>
+                </div>
+              )}
+              {!isMobile && <div style={{ color: "#7a7a8e", fontSize: 13 }}>{track.genre}</div>}
+              {!isMobile && <div style={styles.trackDuration}>{formatTime(track.duration)}</div>}
               <div style={{ textAlign: "right" }}>
                 <button
                   onClick={e => { e.stopPropagation(); setDownloadTrack(track); }}
@@ -741,7 +752,7 @@ export default function SafeMusicLibrary() {
       </div>
 
       {/* ── BOTTOM PLAYER ── */}
-      <div style={styles.player}>
+      <div style={{ ...styles.player, ...(isMobile ? { gridTemplateColumns: "1fr auto", padding: "0 16px" } : {}) }}>
         <Visualizer analyser={analyserRef.current} isPlaying={isPlaying} accent={accent} />
 
         <div style={styles.playerTrackInfo}>
@@ -798,7 +809,7 @@ export default function SafeMusicLibrary() {
           </div>
         </div>
 
-        <div style={styles.playerRight}>
+        {!isMobile && <div style={styles.playerRight}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={toggleMute} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a4a5e", display: "flex", padding: 0, alignItems: "center" }}>
               {isMuted || volume === 0 ? (
@@ -823,7 +834,7 @@ export default function SafeMusicLibrary() {
               Download
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* ── DOWNLOAD MODAL ── */}
