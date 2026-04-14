@@ -590,7 +590,8 @@ export default function SafeMusicLibrary() {
           Free Music for <span style={{ color: "var(--accent)", transition: "color 0.5s" }}>Creators</span>
         </h1>
         <p style={styles.heroSub}>
-          High-quality, copyright-free instrumentals ready for your next video. Stream, download, create.
+          High-quality, copyright-free instrumentals ready for your next project. 
+          Stream, download, create.
         </p>
       </div>
 
