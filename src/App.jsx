@@ -144,26 +144,11 @@ function Visualizer({ analyser, isPlaying, accent }) {
 // ═══════════════════════════════════════════════
 // DOWNLOAD MODAL — ad → credit → download
 // ═══════════════════════════════════════════════
-function DownloadModal({ track, onClose }) {
+function DownloadModal({ track, onClose, adBlocked }) {
   const [step, setStep] = useState("ad");
   const [countdown, setCountdown] = useState(5);
   const [copied, setCopied] = useState(false);
-  const [adBlocked, setAdBlocked] = useState(false);
   const accent = MOOD_ACCENT[track?.mood]?.color || DEFAULT_ACCENT.color;
-
-  useEffect(() => {
-    const bait = document.createElement("div");
-    bait.className = "adsbox pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads";
-    bait.style.cssText = "width:1px;height:1px;position:absolute;left:-9999px;top:-9999px;";
-    document.body.appendChild(bait);
-    setTimeout(() => {
-      const blocked = bait.offsetHeight === 0 ||
-        getComputedStyle(bait).display === "none" ||
-        getComputedStyle(bait).visibility === "hidden";
-      setAdBlocked(blocked);
-      document.body.removeChild(bait);
-    }, 150);
-  }, []);
 
   useEffect(() => {
     if (step !== "ad") return;
@@ -364,6 +349,8 @@ export default function SafeMusicLibrary() {
   const [isMuted, setIsMuted] = useState(false);
   const [subscribers, setSubscribers] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  const [adBlocked, setAdBlocked] = useState(false);
+  const [adBlockDismissed, setAdBlockDismissed] = useState(false);
 
   const accentTheme = currentTrack ? (MOOD_ACCENT[currentTrack.mood] || DEFAULT_ACCENT) : DEFAULT_ACCENT;
   const accent = accentTheme.color;
@@ -406,6 +393,21 @@ export default function SafeMusicLibrary() {
     const check = () => setIsMobile(window.innerWidth < 640);
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
+    const img = new Image();
+    img.onerror = () => setAdBlocked(true);
+    img.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266340486490318&t=" + Date.now();
+    const bait = document.createElement("div");
+    bait.className = "adsbox pub_300x250";
+    bait.style.cssText = "width:1px;height:1px;position:absolute;left:-9999px;top:-9999px;";
+    document.body.appendChild(bait);
+    setTimeout(() => {
+      if (bait.offsetHeight === 0 || getComputedStyle(bait).display === "none") setAdBlocked(true);
+      document.body.removeChild(bait);
+    }, 200);
   }, []);
 
   // Fetch YouTube subscriber count (stale-while-revalidate)
@@ -918,9 +920,37 @@ export default function SafeMusicLibrary() {
         )}
       </div>
 
+      {/* ── ADBLOCK POPUP ── */}
+      {adBlocked && !adBlockDismissed && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(5,5,10,0.85)", backdropFilter: "blur(12px)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#12121a", border: "1px solid #2a2a3a", borderRadius: 16, width: 440, maxWidth: "90vw", padding: "32px 32px 28px", textAlign: "center" }}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#1a1a26", border: "1px solid #2a2a3a", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 20, color: "#eaeaf0", marginBottom: 12 }}>Ad blocker detected</div>
+            <div style={{ fontSize: 14, color: "#7a7a8e", lineHeight: 1.7, marginBottom: 28 }}>
+              SafeMusicLibrary is completely free — ads are the only way we keep it that way.<br /><br />
+              Please whitelist <strong style={{ color: "#eaeaf0" }}>safemusiclibrary.com</strong> in your ad blocker to support the site. It only takes a second!
+            </div>
+            <button
+              onClick={() => setAdBlockDismissed(true)}
+              style={{ width: "100%", padding: "13px 0", borderRadius: 8, border: "none", background: accent, color: "#0a0a0f", fontFamily: "'Outfit', sans-serif", fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+            >
+              I've disabled my ad blocker
+            </button>
+            <button
+              onClick={() => setAdBlockDismissed(true)}
+              style={{ marginTop: 12, background: "none", border: "none", color: "#4a4a5e", fontSize: 13, cursor: "pointer", fontFamily: "'Outfit', sans-serif" }}
+            >
+              Continue anyway
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── DOWNLOAD MODAL ── */}
       {downloadTrack && (
-        <DownloadModal track={downloadTrack} onClose={() => setDownloadTrack(null)} />
+        <DownloadModal track={downloadTrack} onClose={() => setDownloadTrack(null)} adBlocked={adBlocked} />
       )}
 
       {/* ── EQ BAR ANIMATION ── */}
