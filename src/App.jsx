@@ -397,9 +397,12 @@ export default function SafeMusicLibrary() {
 
   useEffect(() => {
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") return;
-    const img = new Image();
-    img.onerror = () => setAdBlocked(true);
-    img.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266340486490318&t=" + Date.now();
+    // Script probe: fires onerror only when actually blocked, not due to content-type
+    const script = document.createElement("script");
+    script.onerror = () => setAdBlocked(true);
+    script.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3266340486490318&t=" + Date.now();
+    document.head.appendChild(script);
+    // CSS bait fallback for cosmetic-filter blockers
     const bait = document.createElement("div");
     bait.className = "adsbox pub_300x250";
     bait.style.cssText = "width:1px;height:1px;position:absolute;left:-9999px;top:-9999px;";
@@ -408,6 +411,7 @@ export default function SafeMusicLibrary() {
       if (bait.offsetHeight === 0 || getComputedStyle(bait).display === "none") setAdBlocked(true);
       document.body.removeChild(bait);
     }, 200);
+    return () => { if (script.parentNode) script.parentNode.removeChild(script); };
   }, []);
 
   // Fetch YouTube subscriber count (stale-while-revalidate)
@@ -621,11 +625,11 @@ export default function SafeMusicLibrary() {
       {/* ── HERO ── */}
       <div style={{ ...styles.hero, ...(isMobile ? { padding: "130px 16px 32px" } : {}) }}>
         <div style={styles.heroGlow} />
-        <h1 style={{ ...styles.heroTitle, ...(isMobile ? { fontSize: 36, letterSpacing: -0.5 } : {}) }}>
+        <h1 style={{ ...styles.heroTitle, ...(isMobile ? { fontSize: 33, letterSpacing: -0.5 } : {}) }}>
           Free Music for <span style={{ color: "var(--accent)", transition: "color 0.5s" }}>Creators</span>
         </h1>
         <p style={styles.heroSub}>
-          High-quality, copyright-free instrumentals ready for your next project. 
+          High-quality, copyright-free instrumentals ready for your next project.<br />
           Stream, download, create.
         </p>
       </div>
