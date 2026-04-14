@@ -753,9 +753,53 @@ export default function SafeMusicLibrary() {
       </div>
 
       {/* ── BOTTOM PLAYER ── */}
-      <div style={{ ...styles.player, ...(isMobile ? { gridTemplateColumns: "1fr auto", padding: "0 16px" } : {}) }}>
+      <div style={{ ...styles.player, ...(isMobile ? { display: "flex", flexDirection: "column", padding: 0, gridTemplateColumns: "unset", alignItems: "stretch" } : {}) }}>
         <Visualizer analyser={analyserRef.current} isPlaying={isPlaying} accent={accent} />
 
+        {isMobile ? (
+          <>
+            {/* Track info row */}
+            <div style={{ display: "flex", alignItems: "center", padding: "0 16px", width: "100%", flex: 1, position: "relative", zIndex: 2, boxSizing: "border-box" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: 1 }}>
+                <div style={styles.playerThumb}>
+                  {isPlaying ? (
+                    <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 20 }}>
+                      {[8,16,12,18,10].map((h,i) => (
+                        <div key={i} style={{ width: 3, borderRadius: 2, background: "var(--accent)", animation: `eqBar 0.8s ease-in-out ${i * 0.12}s infinite alternate`, height: h, transition: "background 0.5s" }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4a4a5e" strokeWidth="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                  )}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: currentTrack ? "var(--accent)" : "#4a4a5e", transition: "color 0.5s", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {currentTrack ? currentTrack.title : "No track selected"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#7a7a8e", marginTop: 2 }}>
+                    {currentTrack ? currentTrack.artist : "—"}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => currentTrack && playTrack(currentTrack)} style={{ ...styles.playMainBtn, flexShrink: 0 }}>
+                {isPlaying ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                )}
+              </button>
+            </div>
+            {/* Progress bar with timers */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px 10px", position: "relative", zIndex: 2, width: "100%", boxSizing: "border-box" }}>
+              <span style={styles.timeLabel}>{formatTime(progress)}</span>
+              <div style={{ ...styles.progressTrack, flex: 1, cursor: "pointer" }} onClick={handleSeek}>
+                <div style={{ ...styles.progressFill, width: `${progressPct}%` }} />
+              </div>
+              <span style={styles.timeLabel}>{formatTime(duration)}</span>
+            </div>
+          </>
+        ) : (
+          <>
         <div style={styles.playerTrackInfo}>
           <div style={styles.playerThumb}>
             {isPlaying ? (
@@ -810,7 +854,7 @@ export default function SafeMusicLibrary() {
           </div>
         </div>
 
-        {!isMobile && <div style={styles.playerRight}>
+        <div style={styles.playerRight}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={toggleMute} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a4a5e", display: "flex", padding: 0, alignItems: "center" }}>
               {isMuted || volume === 0 ? (
@@ -835,7 +879,9 @@ export default function SafeMusicLibrary() {
               Download
             </button>
           )}
-        </div>}
+        </div>
+          </>
+        )}
       </div>
 
       {/* ── DOWNLOAD MODAL ── */}
