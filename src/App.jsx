@@ -8,14 +8,14 @@ const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || "";
 const YOUTUBE_CHANNEL_HANDLE = import.meta.env.VITE_YOUTUBE_CHANNEL_HANDLE || "";
 
 
-const MOODS = ["All", "Dark", "Epic", "Chill", "Aggressive", "Uplifting", "Sad", "Cinematic", "Lo-Fi", "Ambient"];
+const MOODS = ["All", "Dark", "Epic", "Chill", "Aggressive", "Energetic", "Sad", "Cinematic", "Lo-Fi", "Ambient"];
 
 const MOOD_COLORS = {
   Dark: { bg: "rgba(108,92,231,0.12)", text: "#a29bfe", dot: "#a29bfe" },
   Epic: { bg: "rgba(225,112,85,0.12)", text: "#e17055", dot: "#e17055" },
   Chill: { bg: "rgba(0,184,148,0.12)", text: "#00e5a0", dot: "#00e5a0" },
   Aggressive: { bg: "rgba(214,48,49,0.12)", text: "#ff6b6b", dot: "#ff6b6b" },
-  Uplifting: { bg: "rgba(253,203,110,0.12)", text: "#fdcb6e", dot: "#fdcb6e" },
+  Energetic: { bg: "rgba(253,203,110,0.12)", text: "#fdcb6e", dot: "#fdcb6e" },
   Sad: { bg: "rgba(116,185,255,0.12)", text: "#74b9ff", dot: "#74b9ff" },
   Cinematic: { bg: "rgba(162,155,254,0.12)", text: "#a29bfe", dot: "#a29bfe" },
   "Lo-Fi": { bg: "rgba(0,229,160,0.12)", text: "#00e5a0", dot: "#00e5a0" },
@@ -27,7 +27,7 @@ const MOOD_ACCENT = {
   Epic:       { color: "#e17055", subtle: "rgba(225,112,85,0.08)" },
   Chill:      { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
   Aggressive: { color: "#ff6b6b", subtle: "rgba(255,107,107,0.08)" },
-  Uplifting:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
+  Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
   Sad:        { color: "#74b9ff", subtle: "rgba(116,185,255,0.08)" },
   Cinematic:  { color: "#a29bfe", subtle: "rgba(162,155,254,0.08)" },
   "Lo-Fi":    { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
