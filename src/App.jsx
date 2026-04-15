@@ -12,7 +12,7 @@ const MOODS = ["All", "Dark", "Epic", "Chill", "Aggressive", "Energetic", "Sad"]
 
 const MOOD_COLORS = {
   Dark:       { bg: "rgba(108,92,231,0.12)",  text: "#a29bfe", dot: "#a29bfe" },
-  Epic:       { bg: "rgba(225,112,85,0.12)",  text: "#e17055", dot: "#e17055" },
+  Epic:       { bg: "rgba(225,112,85,0.12)",  text: "#e67e39", dot: "#e67e39" },
   Chill:      { bg: "rgba(0,184,148,0.12)",   text: "#00e5a0", dot: "#00e5a0" },
   Aggressive: { bg: "rgba(214,48,49,0.12)",   text: "#ff6b6b", dot: "#ff6b6b" },
   Energetic:  { bg: "rgba(253,203,110,0.12)", text: "#fdcb6e", dot: "#fdcb6e" },
@@ -21,10 +21,9 @@ const MOOD_COLORS = {
 
 const MOOD_ACCENT = {
   Dark:       { color: "#a29bfe", subtle: "rgba(162,155,254,0.08)" },
-  Epic:       { color: "#e17055", subtle: "rgba(225,112,85,0.08)" },
+  Epic:       { color: "#e67e39", subtle: "rgba(230,126,57,0.08)" },
   Chill:      { color: "#00e5a0", subtle: "rgba(0,229,160,0.08)" },
   Aggressive: { color: "#ff6b6b", subtle: "rgba(255,107,107,0.08)" },
-  Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
   Energetic:  { color: "#fdcb6e", subtle: "rgba(253,203,110,0.08)" },
   Sad:        { color: "#74b9ff", subtle: "rgba(116,185,255,0.08)" },
 };
